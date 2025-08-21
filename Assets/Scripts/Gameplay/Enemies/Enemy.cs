@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Game.Gameplay.Combat;
 
 namespace Game.Gameplay.Enemies
@@ -6,7 +6,9 @@ namespace Game.Gameplay.Enemies
     public class Enemy : MonoBehaviour, IDamageable
     {
         public float maxHP = 20f; public float moveSpeed = 2f; private float _hp;
-        [Header("Drops")] public GameObject xpGemPrefab; public int xpAmount = 1;
+        [Header("Drops")] public GameObject xpGemPrefab; 
+        public int xpAmount = 1;
+        public GameObject coinPrefab; public int coinAmount = 0;
 
         private void OnEnable() { _hp = maxHP; EnemyRegistry.Register(transform); }
         private void OnDisable() { EnemyRegistry.Unregister(transform); }
@@ -24,14 +26,27 @@ namespace Game.Gameplay.Enemies
 
         void Die()
         {
+            // Drop XP (lệch vị trí)
             if (xpGemPrefab)
             {
                 var pool = Game.Core.SimplePoolService.Instance;
-                var go = pool ? pool.Get(xpGemPrefab, transform.position, Quaternion.identity)
-                              : Instantiate(xpGemPrefab, transform.position, Quaternion.identity);
+                Vector3 posGem = Game.Gameplay.Pickups.DropScatter.Offset(transform.position);
+                var go = pool ? pool.Get(xpGemPrefab, posGem, Quaternion.identity)
+                              : Instantiate(xpGemPrefab, posGem, Quaternion.identity);
                 var gem = go.GetComponent<Game.Gameplay.Pickups.XpGem>();
                 if (gem) { gem.amount = Mathf.Max(1, xpAmount); gem.prefabRef = xpGemPrefab; }
             }
+            // Drop Coin (lệch vị trí khác)
+            if (coinPrefab && coinAmount > 0)
+            {
+                var pool = Game.Core.SimplePoolService.Instance;
+                Vector3 posCoin = Game.Gameplay.Pickups.DropScatter.Offset(transform.position);
+                var go = pool ? pool.Get(coinPrefab, posCoin, Quaternion.identity)
+                              : Instantiate(coinPrefab, posCoin, Quaternion.identity);
+                var coin = go.GetComponent<Game.Gameplay.Pickups.CoinPickup>();
+                if (coin) { coin.amount = Mathf.Max(1, coinAmount); coin.prefabRef = coinPrefab; }
+            }
+            Game.Core.EventBus.EnemyKilled();
             gameObject.SetActive(false);
         }
     }
